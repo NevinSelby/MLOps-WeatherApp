@@ -1,0 +1,12 @@
+streamlit
+mlflow
+requests
+pandas
+nltk
+scikit-learn
+evidently
+pytest
+xgboost
+joblib
+confluent-kafka
+schedule
