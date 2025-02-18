@@ -1,114 +1,119 @@
-# Not Your Basic Weather Prediction
+# Weather Forecasting App with Data Drift Detection
 
-## 📌 Project Overview
+## Overview
 
-**"Not Your Basic Weather Prediction"** is an MLOps-powered weather forecasting application that enhances a simple weather prediction model with a full **MLOps pipeline**, including:
-✅ **Automated Data Fetching** from an external weather API <br>
-✅ **Data Preprocessing & Feature Engineering**<br>
-✅ **Model Training using XGBoost**<br>
-✅ **Model Tracking with MLflow**<br>
-✅ **API Deployment via FastAPI**<br>
-✅ **Interactive UI using Streamlit**<br>
-✅ **Automated Model Retraining**<br>
+This project is a Streamlit-based web application that predicts temperature based on hour, day, and month inputs. It uses an XGBoost model for predictions and incorporates data drift detection to monitor model performance over time. The app is designed with MLOps principles in mind, featuring automated model retraining when significant data drift is detected.
 
-This project showcases **end-to-end machine learning model development** and deployment using modern MLOps principles.
+## Features
 
-## 🛠️ Tech Stack
+- Temperature prediction based on time inputs
+- Real-time data drift monitoring
+- Automated model retraining via GitHub Actions
+- MLflow integration for experiment tracking
+- Streamlit-based user interface
 
-* **Python** (Main Language)
-* **XGBoost** (ML Model)
-* **Pandas & NumPy** (Data Processing)
-* **MLflow** (Model Tracking)
-* **FastAPI** (API Deployment)
-* **Streamlit** (User Interface)
-* **Uvicorn** (ASGI Server)
-* **Joblib** (Model Persistence)
-
-## 📁 Project Structure
+## Project Structure
 
 ```
-📂 Not Your Basic Weather Prediction
-│── 📄 main.py # Main application file (Train, Serve, UI)
-│── 📄 config.py # Contains API keys & configuration
-│── 📄 requirements.txt # Dependencies for deployment
-│── 📄 xgboost_model.pkl # Trained model (generated after training)
-│── 📂 models # Model storage directory
-│── 📂 mlruns # MLflow tracking directory
+weather_forecasting_app/
+│
+├── .github/
+│   └── workflows/
+│       └── drift_check_and_retrain.yml
+│
+├── .streamlit/
+│   └── secrets.toml
+│
+├── data/
+│   ├── reference_data.csv
+│   └── production_data.csv
+│
+├── models/
+│   └── xgboost_model.pkl
+│
+├── scripts/
+│   ├── drift_detection.py
+│   └── train_model.py
+│
+├── app.py
+├── requirements.txt
+├── README.md
+└── .gitignore
 ```
 
-## 🚀 How to Run the Project
+## Installation
 
-### 1️⃣ Install Dependencies
+1. Clone the repository:
+```bash
+git clone https://github.com/yourusername/weather_forecasting_app.git
+cd weather_forecasting_app
+```
 
+2. Create a virtual environment (optional but recommended):
+```bash
+python -m venv venv
+source venv/bin/activate # On Windows, use `venv\Scripts\activate`
+```
+
+3. Install dependencies:
 ```bash
 pip install -r requirements.txt
 ```
 
-### 2️⃣ Train the Model
+## Configuration
 
+1. Set up your .streamlit/secrets.toml file with your API keys:
+```toml
+WEATHER_API_KEY = "your_api_key_here"
+WEATHER_API_URL = "your_api_url_here"
+```
+
+2. Ensure your MLFLOW_TRACKING_URI in both app.py and train_model.py points to your MLflow server.
+
+## Usage
+
+1. Train the initial model:
 ```bash
-python main.py --train
+python scripts/train_model.py
 ```
 
-* Fetches weather data
-* Preprocesses and engineers features
-* Trains an **XGBoost model**
-* Logs experiment using **MLflow**
-* Saves model as `xgboost_model.pkl`
-
-### 3️⃣ Run the FastAPI Server
-
+2. Start the MLflow server:
 ```bash
-python main.py --serve
+mlflow server --backend-store-uri sqlite:///mlflow.db --default-artifact-root ./mlflow-artifacts
 ```
 
-* Starts FastAPI on **http://127.0.0.1:8000/**
-* Use **POST /predict** to get predictions
-
-### 4️⃣ Run the Streamlit UI
-
+3. Run the Streamlit app:
 ```bash
-python main.py --ui
+streamlit run app.py
 ```
 
-* Provides an interactive interface for weather predictions
+4. Open your web browser and navigate to the URL provided by Streamlit (usually http://localhost:8501).
 
-## 🌍 API Endpoints
+## Data Drift Detection and Model Retraining
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/predict` | Predict temperature for a given time |
+The project includes a GitHub Actions workflow (`drift_check_and_retrain.yml`) that automatically checks for data drift and retrains the model if significant drift is detected. This ensures that the model remains accurate over time as new data is collected.
 
-Example request:
+To enable this feature:
+1. Ensure your GitHub repository is connected to your deployment platform.
+2. Set up the necessary secrets in your GitHub repository settings for API access.
 
-```json
-{
-  "hour": 12,
-  "day": 10,
-  "month": 2
-}
-```
+## Contributing
 
-Example response:
+Contributions to this project are welcome! Please follow these steps:
 
-```json
-{
-  "predicted_temperature": 22.5
-}
-```
+1. Fork the repository
+2. Create a new branch (`git checkout -b feature/AmazingFeature`)
+3. Make your changes
+4. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+5. Push to the branch (`git push origin feature/AmazingFeature`)
+6. Open a Pull Request
 
-## 🎨 Streamlit UI
+## License
 
-* Provides a **slider-based UI** for entering weather conditions
-* Calls the **FastAPI backend** to fetch predictions
-* Displays **predicted temperature** dynamically
+Distributed under the MIT License. See LICENSE for more information.
 
-## 🔄 Automating Model Retraining
+## Contact
 
-To **retrain the model periodically**, run:
+Your Name - [@your_twitter](https://twitter.com/your_twitter) - email@example.com
 
-```bash
-python main.py --train
-```
-
-This fetches new data and updates the model.
+Project Link: [https://github.com/yourusername/weather_forecasting_app](https://github.com/yourusername/weather_forecasting_app)
