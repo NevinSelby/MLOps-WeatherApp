@@ -8,14 +8,13 @@ import joblib
 import streamlit as st
 from datetime import datetime
 import requests
-from evidently.report import Report
-from evidently.metrics import DataDriftTable
+from scipy import stats
 
 # Constants
 LOCATION = {"lat": 37.7749, "lon": -122.4194}  # Example: San Francisco
 MODEL_PATH = "models/xgboost_model.pkl"
-MLFLOW_TRACKING_URI = "http://127.0.0.1:5000"
-EXPERIMENT_NAME = "Weather_Prediction"
+MLFLOW_TRACKING_URI = os.environ.get("MLFLOW_TRACKING_URI")
+EXPERIMENT_NAME = "MLOPS_Weather_Prediction"
 REFERENCE_DATA_PATH = "data/reference_data.csv"
 PRODUCTION_DATA_PATH = "data/production_data.csv"
 
@@ -33,10 +32,24 @@ def predict(hour, day, month):
     prediction = model.predict(input_data)[0]
     
     # Log production data
-    new_entry = pd.DataFrame([[hour, day, month]], columns=["hour", "day", "month"])
+    new_entry = pd.DataFrame([[hour, day, month, prediction]], columns=["hour", "day", "month", "temperature"])
     new_entry.to_csv(PRODUCTION_DATA_PATH, mode="a", header=not os.path.exists(PRODUCTION_DATA_PATH), index=False)
     
     return float(prediction)
+
+def calculate_drift(ref_data, curr_data):
+    drift_score = 0
+    drifted_features = 0
+    
+    for column in ref_data.columns:
+        _, p_value = stats.ks_2samp(ref_data[column], curr_data[column])
+        if p_value < 0.05:  # Assuming significance level of 0.05
+            drifted_features += 1
+        drift_score += (1 - p_value)
+    
+    drift_score /= len(ref_data.columns)
+    
+    return drift_score, drifted_features
 
 def check_drift():
     if not os.path.exists(REFERENCE_DATA_PATH) or not os.path.exists(PRODUCTION_DATA_PATH):
@@ -46,12 +59,11 @@ def check_drift():
     ref = pd.read_csv(REFERENCE_DATA_PATH)
     curr = pd.read_csv(PRODUCTION_DATA_PATH)
     
-    report = Report(metrics=[DataDriftTable()])
-    report.run(reference_data=ref, current_data=curr)
+    drift_score, drifted_features = calculate_drift(ref, curr)
     
     drift_metrics = {
-        "drift_score": report.as_dict()["metrics"][0]["drift_score"],
-        "drifted_features": report.as_dict()["metrics"][0]["number_of_drifted_columns"]
+        "drift_score": drift_score,
+        "drifted_features": drifted_features
     }
     
     with mlflow.start_run():

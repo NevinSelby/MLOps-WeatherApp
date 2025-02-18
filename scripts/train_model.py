@@ -11,17 +11,23 @@ from datetime import datetime
 # Constants
 LOCATION = {"lat": 37.7749, "lon": -122.4194}  # Example: San Francisco
 MODEL_PATH = "models/xgboost_model.pkl"
-MLFLOW_TRACKING_URI = "http://127.0.0.1:5000"
-EXPERIMENT_NAME = "Weather_Prediction"
+MLFLOW_TRACKING_URI = os.environ.get("MLFLOW_TRACKING_URI")
+EXPERIMENT_NAME = "MLOPS_Weather_Prediction"
 REFERENCE_DATA_PATH = "data/reference_data.csv"
 
+
 # Set MLflow tracking
+try:
+    mlflow.create_experiment(EXPERIMENT_NAME)
+except:
+    pass
 mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
 mlflow.set_experiment(EXPERIMENT_NAME)
 
+
 def fetch_weather_data(LOCATION=LOCATION):
-    API_KEY = os.environ.get("WEATHER_API_KEY")
-    API_URL = os.environ.get("WEATHER_API_URL")
+    API_KEY = os.environ.get('WEATHER_API_KEY')
+    API_URL = os.environ.get('WEATHER_API_URL')
     FULL_API_URL = f"{API_URL}{LOCATION['lat']},{LOCATION['lon']}&apikey={API_KEY}"
     response = requests.get(FULL_API_URL)
     return response.json() if response.status_code == 200 else None

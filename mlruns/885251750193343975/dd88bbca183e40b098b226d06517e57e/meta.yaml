@@ -1,0 +1,15 @@
+artifact_uri: file:///Users/nevinselby/Documents/Projects/WeatherMLOps/mlruns/885251750193343975/dd88bbca183e40b098b226d06517e57e/artifacts
+end_time: 1739911268047
+entry_point_name: ''
+experiment_id: '885251750193343975'
+lifecycle_stage: active
+run_id: dd88bbca183e40b098b226d06517e57e
+run_name: awesome-worm-813
+run_uuid: dd88bbca183e40b098b226d06517e57e
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1739911268039
+status: 3
+tags: []
+user_id: nevinselby
