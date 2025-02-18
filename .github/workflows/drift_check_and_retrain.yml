@@ -1,0 +1,43 @@
+name: Drift Detection and Model Retraining
+
+on:
+  push:
+    paths:
+      - 'data/new_data.csv'
+
+jobs:
+  drift_check_and_retrain:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.9
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Run drift detection
+        run: python scripts/drift_detection.py
+        
+      - name: Check drift and retrain if necessary
+        run: |
+          if [[ $(cat drift_result.txt) == "drift_detected" ]]; then
+            echo "Drift detected. Retraining model..."
+            python scripts/train_model.py
+          else
+            echo "No significant drift detected. Skipping retraining."
+          fi
+
+      - name: Commit and push updated model
+        if: ${{ steps.check_drift.outputs.retrain == 'true' }}
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add models/
+          git commit -m "Update model after retraining due to drift"
+          git push
