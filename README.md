@@ -5,12 +5,16 @@
 This project is a Streamlit-based web application that predicts temperature based on hour, day, and month inputs. It uses an XGBoost model for predictions and incorporates data drift detection to monitor model performance over time. The app is designed with MLOps principles in mind, featuring automated model retraining when significant data drift is detected.
 
 ## Features
-
-- Temperature prediction based on time inputs
-- Real-time data drift monitoring
-- Automated model retraining via GitHub Actions
-- MLflow integration for experiment tracking
-- Streamlit-based user interface
+- MLflow integration for experiment tracking<br><br>
+  <img width="1396" alt="image" src="https://github.com/user-attachments/assets/106ce033-8f4a-4fdc-a6d9-4fd8d9adf323" /><br><br><br>
+- Real-time data drift monitoring<br><br>
+  <img width="334" alt="image" src="https://github.com/user-attachments/assets/12be6fe8-06f5-4257-8a37-10db0d68795e" /><br><br><br>
+- Automated model retraining via GitHub Actions<br><br>
+  <img width="1397" alt="image" src="https://github.com/user-attachments/assets/5f8a8031-168b-486d-9721-1b1589942bb1" /><br><br><br>
+- Temperature prediction based on time inputs (Image taken on 2025-02-18)<br><br>
+  <img width="316" alt="image" src="https://github.com/user-attachments/assets/e4cfe0cb-740e-4c2c-afeb-6961189dccad" /><br><br><br>
+- Streamlit-based user interface<br><br>
+  <img width="1512" alt="image" src="https://github.com/user-attachments/assets/65328b1b-980b-4184-ac72-0ebffbad88ed" /><br><br><br>
 
 ## Project Structure
 
