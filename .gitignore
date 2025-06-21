@@ -39,11 +39,6 @@ Thumbs.db
 mlflow.db
 mlruns/
 
-# Data
-*.csv
-*.pkl
-*.joblib
-
 # Logs
 *.log
 
