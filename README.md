@@ -1,113 +1,288 @@
-# Weather Forecasting App with Data Drift Detection
+# WeatherMLOps - Weather Prediction with MLOps
 
-## Overview
+A sophisticated weather prediction web application built with MLOps principles, featuring automated model training, drift detection, and real-time weather forecasting using multiple machine learning models.
 
-This project is a Streamlit-based web application that predicts temperature based on hour, day, and month inputs. It uses an XGBoost model for predictions and incorporates data drift detection to monitor model performance over time. The app is designed with MLOps principles in mind, featuring automated model retraining when significant data drift is detected.
+## 🌟 Features
 
-## Features
-- MLflow integration for experiment tracking<br><br>
-  <img width="1396" alt="image" src="https://github.com/user-attachments/assets/106ce033-8f4a-4fdc-a6d9-4fd8d9adf323" /><br><br><br>
-- Real-time data drift monitoring<br><br>
-  <img width="334" alt="image" src="https://github.com/user-attachments/assets/12be6fe8-06f5-4257-8a37-10db0d68795e" /><br><br><br>
-- Automated model retraining via GitHub Actions<br><br>
-  <img width="1397" alt="image" src="https://github.com/user-attachments/assets/5f8a8031-168b-486d-9721-1b1589942bb1" /><br><br><br>
-- Temperature prediction based on time inputs (Image taken on 2025-02-18)<br><br>
-  <img width="316" alt="image" src="https://github.com/user-attachments/assets/e4cfe0cb-740e-4c2c-afeb-6961189dccad" /><br><br><br>
-- Streamlit-based user interface<br><br>
-  <img width="1512" alt="image" src="https://github.com/user-attachments/assets/65328b1b-980b-4184-ac72-0ebffbad88ed" /><br><br><br>
+### Core Functionality
+- **Multi-Model Weather Prediction**: Uses XGBoost, Random Forest, and Linear Regression models
+- **Real-time Weather Data**: Fetches current weather data from Open-Meteo API
+- **Location-based Predictions**: Accepts city names and automatically geocodes to coordinates
+- **Interactive Dashboard**: Modern Streamlit UI with beautiful visualizations
+- **Model Performance Comparison**: Side-by-side comparison of different ML models
 
-## Project Structure
+### MLOps Capabilities
+- **Automated Model Training**: Scheduled retraining with MLflow experiment tracking
+- **Data Drift Detection**: Monitors data distribution changes and triggers retraining
+- **Model Versioning**: Tracks model performance and versions using MLflow
+- **Daily Monitoring**: Automated daily checks for data quality and model performance
+- **Production-Ready**: Includes monitoring scripts and systemd service for automation
+
+### Advanced Features
+- **Rich Weather Features**: Extracts comprehensive weather features for better predictions
+- **Performance Metrics**: Tracks MAE, MSE, RMSE, and R² scores
+- **Interactive Visualizations**: Charts showing predictions vs actual values
+- **Error Handling**: Robust error handling for API failures and edge cases
+
+## 🏗️ Architecture
 
 ```
-weather_forecasting_app/
-│
-├── .github/
-│   └── workflows/
-│       └── drift_check_and_retrain.yml
-│
-├── .streamlit/
-│   └── secrets.toml
-│
-├── data/
-│   ├── reference_data.csv
-│   └── production_data.csv
-│
-├── models/
-│   └── xgboost_model.pkl
-│
+WeatherMLOps/
+├── main.py                 # Main Streamlit application
 ├── scripts/
-│   ├── drift_detection.py
-│   └── train_model.py
-│
-├── app.py
-├── requirements.txt
-├── README.md
-└── .gitignore
+│   ├── train_model.py      # Model training script
+│   ├── drift_detection.py  # Data drift detection
+│   └── daily_monitor.py    # Daily monitoring automation
+├── data/
+│   ├── production_data.csv # Production weather data
+│   └── reference_data.csv  # Reference data for drift detection
+├── models/                 # Trained model artifacts
+├── mlruns/                 # MLflow experiment tracking
+├── requirements.txt        # Python dependencies
+├── start.sh               # Application startup script
+└── weather-mlops.service  # Systemd service for automation
 ```
 
-## Installation
+## 🚀 Quick Start
 
-1. Clone the repository:
-```bash
-git clone https://github.com/yourusername/weather_forecasting_app.git
-cd weather_forecasting_app
-```
+### Prerequisites
+- Python 3.8+
+- pip package manager
 
-2. Create a virtual environment (optional but recommended):
-```bash
-python -m venv venv
-source venv/bin/activate # On Windows, use `venv\Scripts\activate`
-```
+### Installation
 
-3. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd WeatherMLOps
+   ```
 
-## Configuration
+2. **Create and activate virtual environment**
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
 
-1. Set up your .streamlit/secrets.toml file with your API keys:
-```toml
-WEATHER_API_KEY = "your_api_key_here"
-WEATHER_API_URL = "your_api_url_here"
-```
+3. **Install dependencies**
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-2. Ensure your MLFLOW_TRACKING_URI in both app.py and train_model.py points to your MLflow server.
+4. **Run the application**
+   ```bash
+   streamlit run main.py
+   ```
 
-## Usage
+The application will be available at `http://localhost:8501`
 
-1. Train the initial model:
+## 📖 Usage
+
+### Web Interface
+
+1. **Enter Location**: Type a city name (e.g., "New York", "London", "Tokyo")
+2. **View Current Weather**: See real-time weather data for the location
+3. **Get Predictions**: View temperature predictions from multiple ML models
+4. **Compare Models**: Analyze performance metrics and predictions
+5. **Monitor Drift**: Check data drift status and model health
+
+### Command Line Tools
+
+**Train Models**
 ```bash
 python scripts/train_model.py
 ```
 
-2. Start the MLflow server:
+**Check Data Drift**
 ```bash
-mlflow server --backend-store-uri sqlite:///mlflow.db --default-artifact-root ./mlflow-artifacts
+python scripts/drift_detection.py
 ```
 
-3. Run the Streamlit app:
+**Run Daily Monitoring**
 ```bash
-streamlit run app.py
+python scripts/daily_monitor.py
 ```
 
-4. Open your web browser and navigate to the URL provided by Streamlit (usually http://localhost:8501).
+## 🔧 Configuration
 
-## Data Drift Detection and Model Retraining
+### Environment Variables
+- `OPENWEATHER_API_KEY`: OpenWeatherMap API key (optional, fallback to Open-Meteo)
+- `MLFLOW_TRACKING_URI`: MLflow tracking server URI (defaults to local)
 
-The project includes a GitHub Actions workflow (`drift_check_and_retrain.yml`) that automatically checks for data drift and retrains the model if significant drift is detected. This ensures that the model remains accurate over time as new data is collected.
+### Model Configuration
+Models are configured in `scripts/train_model.py`:
+- **XGBoost**: Gradient boosting with hyperparameter tuning
+- **Random Forest**: Ensemble method with 100 estimators
+- **Linear Regression**: Baseline linear model
 
-To enable this feature:
-1. Ensure your GitHub repository is connected to your deployment platform.
-2. Set up the necessary secrets in your GitHub repository settings for API access.
+## 🤖 MLOps Automation
 
-## Contributing
+### Daily Monitoring Setup
 
-Contributions to this project are welcome! Please follow these steps:
+1. **Install systemd service**
+   ```bash
+   sudo cp weather-mlops.service /etc/systemd/system/
+   sudo systemctl daemon-reload
+   sudo systemctl enable weather-mlops
+   sudo systemctl start weather-mlops
+   ```
+
+2. **Check service status**
+   ```bash
+   sudo systemctl status weather-mlops
+   ```
+
+### Automated Workflow
+1. **Daily at 6 AM**: Data drift detection runs
+2. **If drift detected**: Model retraining is triggered
+3. **Performance monitoring**: Metrics are logged to MLflow
+4. **Alert system**: Notifications for critical issues
+
+## 📊 Data Sources
+
+### Weather Data
+- **Primary**: Open-Meteo API (free, no API key required)
+- **Fallback**: OpenWeatherMap API (requires API key)
+- **Features**: Temperature, humidity, pressure, wind speed, precipitation
+
+### Data Processing
+- **Feature Engineering**: Extracts time-based features, weather patterns
+- **Data Validation**: Ensures data quality and consistency
+- **Drift Detection**: Monitors distribution changes using statistical tests
+
+## 🧪 Model Performance
+
+### Evaluation Metrics
+- **Mean Absolute Error (MAE)**: Average prediction error
+- **Mean Squared Error (MSE)**: Squared prediction error
+- **Root Mean Squared Error (RMSE)**: Standard deviation of prediction errors
+- **R² Score**: Coefficient of determination
+
+### Model Comparison
+The application automatically compares:
+- **XGBoost**: Best for complex patterns, highest accuracy
+- **Random Forest**: Good balance of accuracy and interpretability
+- **Linear Regression**: Baseline model for comparison
+
+## 🔍 Monitoring & Logging
+
+### MLflow Integration
+- **Experiment Tracking**: All training runs are logged
+- **Model Registry**: Version control for trained models
+- **Artifact Storage**: Model files and metadata
+- **Performance History**: Historical metrics and comparisons
+
+### Logging Features
+- **Training Logs**: Detailed training process information
+- **Prediction Logs**: API calls and prediction results
+- **Error Logs**: Exception handling and debugging information
+- **Performance Logs**: Model accuracy and drift metrics
+
+## 🛠️ Development
+
+### Project Structure
+```
+├── main.py                 # Streamlit web application
+├── scripts/
+│   ├── train_model.py      # Model training and evaluation
+│   ├── drift_detection.py  # Statistical drift detection
+│   └── daily_monitor.py    # Automated monitoring
+├── data/                   # Data storage and management
+├── models/                 # Trained model artifacts
+└── mlruns/                 # MLflow experiment data
+```
+
+### Adding New Models
+1. Import the model in `scripts/train_model.py`
+2. Add to the `models` dictionary
+3. Update the evaluation loop
+4. Test with `python scripts/train_model.py`
+
+### Customizing Features
+- **Weather APIs**: Modify API endpoints in `main.py`
+- **Drift Detection**: Adjust thresholds in `scripts/drift_detection.py`
+- **UI Components**: Customize Streamlit components in `main.py`
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+**Streamlit Connection Error**
+```bash
+# Check if port 8501 is available
+lsof -i :8501
+# Kill process if needed
+kill -9 <PID>
+```
+
+**MLflow Database Issues**
+```bash
+# Reset MLflow database
+rm -rf mlruns/
+rm mlflow.db
+```
+
+**API Rate Limiting**
+- Open-Meteo: 10,000 requests/day (usually sufficient)
+- OpenWeatherMap: Check your plan limits
+
+**Model Training Failures**
+```bash
+# Check data quality
+python -c "import pandas as pd; print(pd.read_csv('data/production_data.csv').info())"
+```
+
+### Debug Mode
+Run with debug logging:
+```bash
+streamlit run main.py --logger.level=debug
+```
+
+## 📈 Performance Optimization
+
+### Model Optimization
+- **Hyperparameter Tuning**: Automated with MLflow
+- **Feature Selection**: Automatic feature importance ranking
+- **Cross-Validation**: K-fold validation for robust evaluation
+
+### System Optimization
+- **Caching**: Streamlit caching for API calls
+- **Async Processing**: Non-blocking API requests
+- **Memory Management**: Efficient data handling
+
+## 🤝 Contributing
 
 1. Fork the repository
-2. Create a new branch (`git checkout -b feature/AmazingFeature`)
+2. Create a feature branch
 3. Make your changes
-4. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-5. Push to the branch (`git push origin feature/AmazingFeature`)
-6. Open a Pull Request
+4. Add tests if applicable
+5. Submit a pull request
+
+### Code Style
+- Follow PEP 8 guidelines
+- Add type hints where appropriate
+- Include docstrings for functions
+- Write clear commit messages
+
+## 📄 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## 🙏 Acknowledgments
+
+- **Open-Meteo**: Free weather API service
+- **Streamlit**: Web application framework
+- **MLflow**: MLOps platform
+- **XGBoost**: Gradient boosting library
+- **Scikit-learn**: Machine learning library
+
+## 📞 Support
+
+For issues and questions:
+1. Check the troubleshooting section
+2. Review the logs in `mlruns/`
+3. Open an issue on GitHub
+4. Contact the development team
+
+---
+
+**WeatherMLOps** - Making weather prediction accessible and reliable with modern MLOps practices.

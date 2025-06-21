@@ -1,0 +1,16 @@
+[Unit]
+Description=WeatherMLOps Daily Monitoring Service
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/Users/nevinselby/Documents/Projects/WeatherMLOps
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+Environment=PYTHONPATH=/Users/nevinselby/Documents/Projects/WeatherMLOps
+ExecStart=/usr/bin/python3 /Users/nevinselby/Documents/Projects/WeatherMLOps/scripts/daily_monitor.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target 
