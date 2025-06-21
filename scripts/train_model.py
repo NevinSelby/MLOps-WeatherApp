@@ -57,27 +57,22 @@ def generate_synthetic_weather_data(lat, lon, days=30):
 
 def fetch_weather_data(lat, lon):
     """Fetch weather data from Open-Meteo API"""
-    # Open-Meteo API doesn't require API key
     base_url = "https://api.open-meteo.com/v1/forecast"
     
-    # Parameters for weather data
     params = {
         'latitude': lat,
         'longitude': lon,
-        'hourly': 'temperature_2m,relative_humidity_2m,pressure_msl,wind_speed_10m',
+        'hourly': 'temperature_2m,relative_humidity_2m,pressure_msl,wind_speed_10m,cloud_cover',
         'timezone': 'auto',
-        'forecast_days': 7
+        'forecast_days': 14  # Fetch more data for robust training
     }
     
     try:
-        response = requests.get(base_url, params=params, timeout=10)
-        if response.status_code == 200:
-            return response.json()
-        else:
-            print(f"API request failed with status {response.status_code}")
-            return None
-    except Exception as e:
-        print(f"Error fetching weather data: {str(e)}")
+        response = requests.get(base_url, params=params, timeout=15)
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        print(f"API request failed: {e}")
         return None
 
 def preprocess_api_data(data, lat, lon):
@@ -86,26 +81,35 @@ def preprocess_api_data(data, lat, lon):
         return None
     
     hourly_data = data['hourly']
-    if not hourly_data or 'time' not in hourly_data or 'temperature_2m' not in hourly_data:
+    
+    # Ensure all required keys exist
+    required_keys = ['time', 'temperature_2m', 'relative_humidity_2m', 'pressure_msl', 'wind_speed_10m', 'cloud_cover']
+    if not all(key in hourly_data for key in required_keys):
+        print("API response is missing required hourly data keys.")
         return None
+        
+    df = pd.DataFrame({
+        'timestamp': pd.to_datetime(hourly_data['time']),
+        'temperature': hourly_data['temperature_2m'],
+        'humidity': hourly_data['relative_humidity_2m'],
+        'pressure': hourly_data['pressure_msl'],
+        'wind_speed': hourly_data['wind_speed_10m'],
+        'cloud_cover': hourly_data['cloud_cover']
+    })
     
-    processed_data = []
-    times = hourly_data['time']
-    temperatures = hourly_data['temperature_2m']
+    # Extract time features
+    df['hour'] = df['timestamp'].dt.hour
+    df['day'] = df['timestamp'].dt.day
+    df['month'] = df['timestamp'].dt.month
     
-    for i in range(len(times)):
-        if i < len(temperatures):
-            dt = datetime.fromisoformat(times[i].replace('Z', '+00:00'))
-            processed_data.append({
-                'hour': dt.hour,
-                'day': dt.day,
-                'month': dt.month,
-                'lat': lat,
-                'lon': lon,
-                'temperature': temperatures[i]
-            })
+    # Add location features
+    df['lat'] = lat
+    df['lon'] = lon
     
-    return pd.DataFrame(processed_data)
+    # Handle potential missing values from API
+    df.dropna(inplace=True)
+    
+    return df
 
 def train_model(lat, lon):
     """Train the XGBoost model with weather data"""
@@ -114,21 +118,22 @@ def train_model(lat, lon):
     # Try to get real data first
     api_data = fetch_weather_data(lat, lon)
     
+    df = None
     if api_data:
         df = preprocess_api_data(api_data, lat, lon)
-        if df is None or df.empty:
-            print("Failed to process API data. Using synthetic data.")
-            df = generate_synthetic_weather_data(lat, lon)
-    else:
-        df = generate_synthetic_weather_data(lat, lon)
+
+    if df is None or df.empty:
+        print("Failed to fetch or process API data. Cannot train model without data.")
+        return None
     
     # Save reference dataset
     os.makedirs(os.path.dirname(REFERENCE_DATA_PATH), exist_ok=True)
     df.to_csv(REFERENCE_DATA_PATH, index=False)
-    print(f"Reference data saved to {REFERENCE_DATA_PATH}")
+    print(f"Reference data with {len(df)} records saved to {REFERENCE_DATA_PATH}")
     
     # Prepare features and target
-    X = df[['hour', 'day', 'month', 'lat', 'lon']]
+    feature_columns = ['hour', 'day', 'month', 'lat', 'lon', 'humidity', 'pressure', 'wind_speed', 'cloud_cover']
+    X = df[feature_columns]
     y = df['temperature']
     
     # Train XGBoost model
