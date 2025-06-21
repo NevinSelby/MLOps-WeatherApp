@@ -113,8 +113,12 @@ PRODUCTION_DATA_PATH = "data/production_data.csv"
 DRIFT_THRESHOLD = 0.3  # Configurable drift threshold
 
 # Set MLflow tracking
-mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
-mlflow.set_experiment(EXPERIMENT_NAME)
+try:
+    mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
+    mlflow.set_experiment(EXPERIMENT_NAME)
+except Exception as e:
+    st.warning(f"MLflow initialization failed: {str(e)}. Some features may be limited.")
+    # Continue without MLflow for basic functionality
 
 @st.cache_data
 def load_model():
@@ -363,6 +367,420 @@ def create_enhanced_weather_chart(predictions, location_name):
     
     return fig
 
+def retrain_model(lat, lon):
+    """Retrain the model with new data"""
+    try:
+        # Fetch new weather data
+        weather_data = fetch_weather_data(lat, lon)
+        if not weather_data:
+            return False
+        
+        # Extract features and train new models
+        features_df = extract_weather_features(weather_data)
+        if features_df is None or features_df.empty:
+            return False
+        
+        # Prepare training data
+        X = features_df[['hour', 'day', 'month', 'lat', 'lon', 'humidity', 'pressure', 'wind_speed', 'cloud_cover']].values
+        y = features_df['temperature'].values
+        
+        # Train multiple models
+        models, metrics = train_multiple_models(X, y)
+        
+        # Save the best model (XGBoost)
+        if 'XGBoost' in models:
+            joblib.dump(models['XGBoost'], MODEL_PATH)
+            st.success("Model retrained successfully!")
+            return True
+        
+        return False
+    except Exception as e:
+        st.error(f"Error retraining model: {str(e)}")
+        return False
+
+# Data Exploration Functions
+@st.cache_data
+def load_reference_data():
+    """Load reference data for analysis"""
+    try:
+        return pd.read_csv(REFERENCE_DATA_PATH)
+    except Exception as e:
+        st.error(f"Error loading reference data: {str(e)}")
+        return None
+
+@st.cache_data
+def load_production_data():
+    """Load production data for analysis"""
+    try:
+        return pd.read_csv(PRODUCTION_DATA_PATH)
+    except Exception as e:
+        st.error(f"Error loading production data: {str(e)}")
+        return None
+
+def analyze_data_distribution(df, title):
+    """Analyze and visualize data distribution"""
+    if df is None or df.empty:
+        return
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader(f"{title} - Temperature Distribution")
+        fig = px.histogram(df, x='temperature', nbins=30, 
+                          title=f"{title} Temperature Distribution",
+                          color_discrete_sequence=['#667eea'])
+        fig.update_layout(showlegend=False)
+        st.plotly_chart(fig, use_container_width=True)
+    
+    with col2:
+        st.subheader(f"{title} - Temperature by Hour")
+        hourly_temp = df.groupby('hour')['temperature'].mean().reset_index()
+        fig = px.line(hourly_temp, x='hour', y='temperature',
+                     title=f"{title} Average Temperature by Hour",
+                     color_discrete_sequence=['#764ba2'])
+        fig.update_layout(showlegend=False)
+        st.plotly_chart(fig, use_container_width=True)
+
+def analyze_temporal_patterns(df, title):
+    """Analyze temporal patterns in the data"""
+    if df is None or df.empty:
+        return
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader(f"{title} - Temperature by Month")
+        monthly_temp = df.groupby('month')['temperature'].agg(['mean', 'std', 'min', 'max']).reset_index()
+        fig = px.bar(monthly_temp, x='month', y='mean',
+                    title=f"{title} Average Temperature by Month",
+                    color_discrete_sequence=['#667eea'])
+        fig.update_layout(showlegend=False)
+        st.plotly_chart(fig, use_container_width=True)
+    
+    with col2:
+        st.subheader(f"{title} - Temperature by Day")
+        daily_temp = df.groupby('day')['temperature'].mean().reset_index()
+        fig = px.scatter(daily_temp, x='day', y='temperature',
+                        title=f"{title} Average Temperature by Day",
+                        color_discrete_sequence=['#764ba2'])
+        fig.update_layout(showlegend=False)
+        st.plotly_chart(fig, use_container_width=True)
+
+def analyze_geographic_distribution(df, title):
+    """Analyze geographic distribution of data"""
+    if df is None or df.empty:
+        return
+    
+    # Remove duplicates for cleaner visualization
+    unique_locations = df.drop_duplicates(subset=['lat', 'lon'])
+    
+    if len(unique_locations) > 1:
+        st.subheader(f"{title} - Geographic Distribution")
+        
+        # Create a map showing data points
+        fig = px.scatter_mapbox(unique_locations, 
+                               lat='lat', lon='lon',
+                               color='temperature',
+                               size='temperature',
+                               hover_data=['lat', 'lon', 'temperature'],
+                               title=f"{title} - Temperature by Location",
+                               color_continuous_scale='viridis',
+                               mapbox_style='open-street-map')
+        
+        fig.update_layout(height=400)
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.info(f"{title} data is from a single location: {unique_locations['lat'].iloc[0]:.4f}, {unique_locations['lon'].iloc[0]:.4f}")
+
+def compare_datasets(ref_df, prod_df):
+    """Compare reference and production datasets"""
+    if ref_df is None or prod_df is None:
+        return
+    
+    st.subheader("📊 Dataset Comparison")
+    
+    # Basic statistics comparison
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.metric("Reference Data Points", len(ref_df))
+        st.metric("Production Data Points", len(prod_df))
+    
+    with col2:
+        st.metric("Reference Avg Temp", f"{ref_df['temperature'].mean():.2f}°C")
+        st.metric("Production Avg Temp", f"{prod_df['temperature'].mean():.2f}°C")
+    
+    with col3:
+        st.metric("Reference Temp Std", f"{ref_df['temperature'].std():.2f}°C")
+        st.metric("Production Temp Std", f"{prod_df['temperature'].std():.2f}°C")
+    
+    # Statistical comparison
+    st.subheader("Statistical Comparison")
+    
+    # Perform t-test to compare temperature distributions
+    t_stat, p_value = stats.ttest_ind(ref_df['temperature'], prod_df['temperature'])
+    
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("T-Statistic", f"{t_stat:.4f}")
+    with col2:
+        st.metric("P-Value", f"{p_value:.4f}")
+    with col3:
+        if p_value < 0.05:
+            st.metric("Significance", "Significant Difference", delta="⚠️")
+        else:
+            st.metric("Significance", "No Significant Difference", delta="✅")
+    
+    # Distribution comparison plot
+    st.subheader("Temperature Distribution Comparison")
+    fig = go.Figure()
+    
+    fig.add_trace(go.Histogram(x=ref_df['temperature'], name='Reference Data', 
+                               opacity=0.7, nbinsx=30, marker_color='#667eea'))
+    fig.add_trace(go.Histogram(x=prod_df['temperature'], name='Production Data', 
+                               opacity=0.7, nbinsx=30, marker_color='#764ba2'))
+    
+    fig.update_layout(title="Temperature Distribution Comparison",
+                     xaxis_title="Temperature (°C)",
+                     yaxis_title="Frequency",
+                     barmode='overlay')
+    
+    st.plotly_chart(fig, use_container_width=True)
+
+def show_data_quality_report(df, title):
+    """Show data quality report for a dataset"""
+    if df is None or df.empty:
+        return
+    
+    st.subheader(f"🔍 {title} - Data Quality Report")
+    
+    # Basic info
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.metric("Total Rows", len(df))
+        st.metric("Total Columns", len(df.columns))
+    
+    with col2:
+        st.metric("Missing Values", df.isnull().sum().sum())
+        st.metric("Duplicate Rows", df.duplicated().sum())
+    
+    with col3:
+        st.metric("Unique Locations", df[['lat', 'lon']].drop_duplicates().shape[0])
+        st.metric("Date Range", f"{df['month'].min()}-{df['month'].max()}")
+    
+    # Data types and missing values
+    st.subheader("Column Information")
+    
+    col_info = pd.DataFrame({
+        'Column': df.columns,
+        'Data Type': df.dtypes,
+        'Missing Values': df.isnull().sum(),
+        'Missing %': (df.isnull().sum() / len(df) * 100).round(2)
+    })
+    
+    st.dataframe(col_info, use_container_width=True)
+    
+    # Statistical summary
+    st.subheader("Statistical Summary")
+    st.dataframe(df.describe(), use_container_width=True)
+
+def show_data_exploration_page():
+    """Main function for data exploration page"""
+    st.markdown("""
+    <div class="main-header">
+        <h1>📊 Data Exploration & Analysis</h1>
+        <p>Explore reference and production data to understand patterns, quality, and drift</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Load data
+    with st.spinner("Loading datasets..."):
+        ref_data = load_reference_data()
+        prod_data = load_production_data()
+    
+    if ref_data is None and prod_data is None:
+        st.error("Unable to load any data files. Please check if the data files exist.")
+        return
+    
+    # Sidebar for navigation
+    st.sidebar.markdown("### 📊 Data Analysis Options")
+    analysis_option = st.sidebar.selectbox(
+        "Choose Analysis Type",
+        ["Overview", "Reference Data", "Production Data", "Data Comparison", "Data Quality"]
+    )
+    
+    if analysis_option == "Overview":
+        st.markdown("## 📈 Data Overview")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            if ref_data is not None:
+                st.success(f"✅ Reference Data Loaded: {len(ref_data)} records")
+                st.metric("Reference Data Size", f"{len(ref_data):,} rows")
+                st.metric("Reference Date Range", f"Month {ref_data['month'].min()} - {ref_data['month'].max()}")
+            else:
+                st.error("❌ Reference Data Not Available")
+        
+        with col2:
+            if prod_data is not None:
+                st.success(f"✅ Production Data Loaded: {len(prod_data)} records")
+                st.metric("Production Data Size", f"{len(prod_data):,} rows")
+                st.metric("Production Date Range", f"Month {prod_data['month'].min()} - {prod_data['month'].max()}")
+            else:
+                st.error("❌ Production Data Not Available")
+        
+        # Quick comparison if both datasets are available
+        if ref_data is not None and prod_data is not None:
+            st.markdown("### Quick Comparison")
+            compare_datasets(ref_data, prod_data)
+    
+    elif analysis_option == "Reference Data":
+        if ref_data is not None:
+            st.markdown("## 📋 Reference Data Analysis")
+            
+            # Data quality report
+            show_data_quality_report(ref_data, "Reference Data")
+            
+            # Distribution analysis
+            st.markdown("### 📊 Distribution Analysis")
+            analyze_data_distribution(ref_data, "Reference Data")
+            
+            # Temporal patterns
+            st.markdown("### ⏰ Temporal Patterns")
+            analyze_temporal_patterns(ref_data, "Reference Data")
+            
+            # Geographic distribution
+            st.markdown("### 🌍 Geographic Distribution")
+            analyze_geographic_distribution(ref_data, "Reference Data")
+            
+            # Raw data preview
+            st.markdown("### 📄 Raw Data Preview")
+            st.dataframe(ref_data.head(20), use_container_width=True)
+            
+            # Download option
+            csv = ref_data.to_csv(index=False)
+            st.download_button(
+                label="Download Reference Data as CSV",
+                data=csv,
+                file_name="reference_data.csv",
+                mime="text/csv"
+            )
+        else:
+            st.error("Reference data not available.")
+    
+    elif analysis_option == "Production Data":
+        if prod_data is not None:
+            st.markdown("## 🚀 Production Data Analysis")
+            
+            # Data quality report
+            show_data_quality_report(prod_data, "Production Data")
+            
+            # Distribution analysis
+            st.markdown("### 📊 Distribution Analysis")
+            analyze_data_distribution(prod_data, "Production Data")
+            
+            # Temporal patterns
+            st.markdown("### ⏰ Temporal Patterns")
+            analyze_temporal_patterns(prod_data, "Production Data")
+            
+            # Geographic distribution
+            st.markdown("### 🌍 Geographic Distribution")
+            analyze_geographic_distribution(prod_data, "Production Data")
+            
+            # Raw data preview
+            st.markdown("### 📄 Raw Data Preview")
+            st.dataframe(prod_data.head(20), use_container_width=True)
+            
+            # Download option
+            csv = prod_data.to_csv(index=False)
+            st.download_button(
+                label="Download Production Data as CSV",
+                data=csv,
+                file_name="production_data.csv",
+                mime="text/csv"
+            )
+        else:
+            st.error("Production data not available.")
+    
+    elif analysis_option == "Data Comparison":
+        if ref_data is not None and prod_data is not None:
+            st.markdown("## 🔄 Data Comparison Analysis")
+            compare_datasets(ref_data, prod_data)
+            
+            # Additional comparison metrics
+            st.markdown("### 📈 Trend Analysis")
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.subheader("Reference Data Trends")
+                ref_trend = ref_data.groupby('month')['temperature'].mean()
+                fig = px.line(x=ref_trend.index, y=ref_trend.values,
+                            title="Reference Data: Temperature Trend by Month",
+                            color_discrete_sequence=['#667eea'])
+                st.plotly_chart(fig, use_container_width=True)
+            
+            with col2:
+                st.subheader("Production Data Trends")
+                prod_trend = prod_data.groupby('month')['temperature'].mean()
+                fig = px.line(x=prod_trend.index, y=prod_trend.values,
+                            title="Production Data: Temperature Trend by Month",
+                            color_discrete_sequence=['#764ba2'])
+                st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.error("Both reference and production data are required for comparison.")
+    
+    elif analysis_option == "Data Quality":
+        st.markdown("## 🔍 Data Quality Analysis")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            if ref_data is not None:
+                st.subheader("Reference Data Quality")
+                show_data_quality_report(ref_data, "Reference")
+        
+        with col2:
+            if prod_data is not None:
+                st.subheader("Production Data Quality")
+                show_data_quality_report(prod_data, "Production")
+        
+        # Data quality recommendations
+        st.markdown("### 💡 Data Quality Recommendations")
+        
+        recommendations = []
+        
+        if ref_data is not None:
+            if ref_data.isnull().sum().sum() > 0:
+                recommendations.append("🔴 Reference data contains missing values")
+            if ref_data.duplicated().sum() > 0:
+                recommendations.append("🟡 Reference data contains duplicate records")
+            if ref_data['temperature'].std() < 1:
+                recommendations.append("🟡 Reference data has low temperature variance")
+        
+        if prod_data is not None:
+            if prod_data.isnull().sum().sum() > 0:
+                recommendations.append("🔴 Production data contains missing values")
+            if prod_data.duplicated().sum() > 0:
+                recommendations.append("🟡 Production data contains duplicate records")
+            if prod_data['temperature'].std() < 1:
+                recommendations.append("🟡 Production data has low temperature variance")
+        
+        if ref_data is not None and prod_data is not None:
+            temp_diff = abs(ref_data['temperature'].mean() - prod_data['temperature'].mean())
+            if temp_diff > 5.0:
+                recommendations.append("🔴 Large temperature difference between datasets")
+            elif temp_diff > 2.0:
+                recommendations.append("🟡 Moderate temperature difference between datasets")
+        
+        if recommendations:
+            for rec in recommendations:
+                st.write(rec)
+        else:
+            st.success("✅ Data quality looks good!")
+
 def main():
     # Header
     st.markdown("""
@@ -372,6 +790,18 @@ def main():
     </div>
     """, unsafe_allow_html=True)
     
+    # Page navigation
+    st.sidebar.markdown("## 📄 Navigation")
+    page = st.sidebar.selectbox(
+        "Choose a page",
+        ["Weather Prediction", "Data Exploration"]
+    )
+    
+    if page == "Data Exploration":
+        show_data_exploration_page()
+        return
+    
+    # Weather Prediction Page
     # Sidebar for configuration
     st.sidebar.markdown("## ⚙️ Configuration")
     
@@ -703,17 +1133,6 @@ def check_data_drift():
     except Exception as e:
         st.error(f"Error checking drift: {str(e)}")
         return None
-
-def retrain_model(lat, lon):
-    """Retrain the model with new data"""
-    try:
-        from scripts.train_model import train_model
-        train_model(lat, lon)
-        st.success("Model retrained successfully!")
-        return True
-    except Exception as e:
-        st.error(f"Error retraining model: {str(e)}")
-        return False
 
 if __name__ == "__main__":
     main()
